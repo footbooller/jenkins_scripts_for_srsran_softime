@@ -42,15 +42,25 @@ cd ../..  # Вернуться в корень workspace
 
 # === Генерация конфигурационных файлов ===
 echo "=== Генерация конфигурационных файлов ==="
-cd srsran  # !!! Фикс: Переходим в директорию srsran перед cp !!!
-if [ ! -f "srsepc/srsepc.conf.example" ]; then
-    echo "Ошибка: Файл srsepc/srsepc.conf.example не найден! Проверьте репозиторий srsRAN_4G."
+cd srsran  # Предполагая, что репозиторий склонирован как 'srsran' (проверьте в вашем git clone)
+if [ ! -f "srsepc/epc.conf.example" ]; then
+    echo "Ошибка: Файл srsepc/epc.conf.example не найден! Проверьте репозиторий srsRAN_4G."
     exit 1
 fi
-cp srsepc/srsepc.conf.example srsepc/srsepc.conf
+cp srsepc/epc.conf.example srsepc/epc.conf
 cp srsenb/enb.conf.example srsenb/enb.conf
 cp srsue/ue.conf.example srsue/ue.conf
-# Добавьте другие cp, если нужно (например, rr.conf.example, sib.conf.example)
-# Опционально: Модифицируйте конфиги для ZMQ (sed -i 's/device_name = uhd/device_name = zmq/g' srsenb/enb.conf)
-cd ..  # Вернуться назад
-echo "=== Сборка завершена ==="
+
+# Модифицируем конфиги для ZMQ (doc 13.2: Замена RF на ZMQ)
+sed -i 's/device_name = uhd/device_name = zmq/g' srsenb/enb.conf
+sed -i 's/device_args = auto/device_args = tx_port=tcp:\/\/*:2001,rx_port=tcp:\/\/localhost:2000,id=enb,base_srate=23.04e6/g' srsenb/enb.conf
+sed -i 's/device_name = uhd/device_name = zmq/g' srsue/ue.conf
+sed -i 's/device_args = auto/device_args = tx_port=tcp:\/\/*:2003,rx_port=tcp:\/\/localhost:2002,id=ue,base_srate=23.04e6/g' srsue/ue.conf
+
+# Опционально: Установите другие параметры (MCC/MNC, IP для TUN)
+sed -i 's/mcc = 001/mcc = 001/g' srsepc/epc.conf  # Пример: Ваш MCC/MNC
+sed -i 's/mnc = 01/mnc = 01/g' srsepc/epc.conf
+sed -i 's/gtp_bind_addr = 127.0.0.1/gtp_bind_addr = 127.0.0.1/g' srsepc/epc.conf  # Локальный IP
+
+cd ..  # Вернуться в корень workspace
+echo "=== Конфигурационные файлы сгенерированы и настроены для ZMQ ==="

@@ -2,15 +2,12 @@
 set -e
 
 # === Проверка сборки ===
-BUILD_DIR="build"
-SRS_DIR="srsRAN_4G"
-
-if [ ! -d "$BUILD_DIR/$SRS_DIR/build" ]; then
+if [ ! -d "srsRAN_4G/build" ]; then
   echo "ОШИБКА: Сборка не найдена! Запустите setup_env_ci.sh"
   exit 1
 fi
 
-cd $BUILD_DIR/$SRS_DIR/build
+cd srsRAN_4G/build
 
 # === Очистка (doc 13.3.6) ===
 echo "Очистка namespace..."

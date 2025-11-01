@@ -45,14 +45,16 @@ cmake .. -DCMAKE_BUILD_TYPE=Release
 make -j$(nproc)
 
 echo "=== Сборка завершена ==="
+
 # === Генерация конфигурационных файлов (doc 13.3) ===
 echo "=== Генерация конфигурационных файлов ==="
+cd ..  # Выходим из build/ в srsRAN_4G/
 mkdir -p configs
 
-# Копируем из исходников (на уровень выше build/)
-cp ../srsepc/srsepc.conf.example configs/epc.conf
-cp ../srsenb/enb.conf.example configs/enb.conf
-cp ../srsue/ue.conf.example configs/ue.conf
+# Копируем из правильных поддиректорий (внутри srsRAN_4G/)
+cp srsepc/srsepc.conf.example configs/epc.conf
+cp srsenb/enb.conf.example configs/enb.conf
+cp srsue/ue.conf.example configs/ue.conf
 
 # === Настройка UE ===
 sed -i 's/imsi = .*/imsi = 001010000000001/' configs/ue.conf
@@ -68,5 +70,6 @@ sed -i '/\[rf\]/,/^\[/ s/device_name = .*/device_name = zmq/' configs/enb.conf
 sed -i '/\[rf\]/,/^\[/ s|device_args = .*|device_args = "fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://localhost:2001,id=enb,base_srate=23.04e6"|' configs/enb.conf
 
 echo "Конфиги созданы: configs/epc.conf, enb.conf, ue.conf"
+
 # === EPC — дефолт подходит ===
 echo "Конфиги готовы в ./configs/"

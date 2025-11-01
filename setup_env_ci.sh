@@ -1,75 +1,56 @@
 #!/bin/bash
-set -e
+set -e  # Остановка на ошибках
 
+# === Установка системных зависимостей ===
 echo "=== Установка системных зависимостей (один раз) ==="
 sudo apt update
-sudo apt install -y \
-  build-essential cmake git wget curl \
-  libboost-all-dev libfftw3-dev libmbedtls-dev \
-  libconfig++-dev libsctp-dev libpcsclite-dev \
-  iproute2 net-tools
+sudo apt install -y build-essential iproute2 libfftw3-dev libsctp-dev libboost-all-dev libconfig++-dev libmbedtls-dev cmake curl git libpcsclite-dev net-tools wget
 
+# === Клонирование и сборка libzmq ===
 echo "=== Клонирование и сборка libzmq (doc 13.2) ==="
-if [ ! -d "libzmq" ]; then
-  git clone https://github.com/zeromq/libzmq.git
-else
-  (cd libzmq && git pull)
-fi
+git clone https://github.com/zeromq/libzmq.git || true  # Если уже склонировано
 cd libzmq
-./autogen.sh && ./configure && make -j$(nproc)
-sudo make install
-sudo ldconfig
-cd ..
-
-echo "=== Клонирование и сборка czmq (doc 13.2) ==="
-if [ ! -d "czmq" ]; then
-  git clone https://github.com/zeromq/czmq.git
-else
-  (cd czmq && git pull)
-fi
-cd czmq
-./autogen.sh && ./configure && make -j$(nproc)
-sudo make install
-sudo ldconfig
-cd ..
-
-echo "=== Клонирование и сборка srsRAN_4G (doc 13.2) ==="
-if [ ! -d "srsRAN_4G" ]; then
-  git clone https://github.com/srsran/srsRAN_4G.git
-else
-  (cd srsRAN_4G && git pull)
-fi
-cd srsRAN_4G
-mkdir -p build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
+./autogen.sh
+./configure
 make -j$(nproc)
+sudo make install
+sudo ldconfig
+cd ..
 
-echo "=== Сборка завершена ==="
+# === Клонирование и сборка czmq ===
+echo "=== Клонирование и сборка czmq (doc 13.2) ==="
+git clone https://github.com/zeromq/czmq.git || true
+cd czmq
+./autogen.sh
+./configure
+make -j$(nproc)
+sudo make install
+sudo ldconfig
+cd ..
 
-# === Генерация конфигурационных файлов (doc 13.3) ===
+# === Клонирование и сборка srsRAN_4G ===
+echo "=== Клонирование и сборка srsRAN_4G (doc 13.2) ==="
+git clone https://github.com/srsran/srsRAN_4G.git srsran || true  # Укажите правильный URL, если форк
+cd srsran
+mkdir -p build
+cd build
+cmake ..
+make -j$(nproc)
+sudo make install
+sudo ldconfig
+cd ../..  # Вернуться в корень workspace
+
+# === Генерация конфигурационных файлов ===
 echo "=== Генерация конфигурационных файлов ==="
-cd ..  # Выходим из build/ в srsRAN_4G/
-mkdir -p configs
-
-# Копируем из правильных поддиректорий (внутри srsRAN_4G/)
-cp srsepc/srsepc.conf.example configs/epc.conf
-cp srsenb/enb.conf.example configs/enb.conf
-cp srsue/ue.conf.example configs/ue.conf
-
-# === Настройка UE ===
-sed -i 's/imsi = .*/imsi = 001010000000001/' configs/ue.conf
-sed -i 's/apn = .*/apn = srsapn/' configs/ue.conf
-
-# === Настройка RF в конфигах (ZMQ) ===
-# UE
-sed -i '/\[rf\]/,/^\[/ s/device_name = .*/device_name = zmq/' configs/ue.conf
-sed -i '/\[rf\]/,/^\[/ s|device_args = .*|device_args = "tx_port=tcp://*:2001,rx_port=tcp://localhost:2000,id=ue,base_srate=23.04e6"|' configs/ue.conf
-
-# eNB
-sed -i '/\[rf\]/,/^\[/ s/device_name = .*/device_name = zmq/' configs/enb.conf
-sed -i '/\[rf\]/,/^\[/ s|device_args = .*|device_args = "fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://localhost:2001,id=enb,base_srate=23.04e6"|' configs/enb.conf
-
-echo "Конфиги созданы: configs/epc.conf, enb.conf, ue.conf"
-
-# === EPC — дефолт подходит ===
-echo "Конфиги готовы в ./configs/"
+cd srsran  # !!! Фикс: Переходим в директорию srsran перед cp !!!
+if [ ! -f "srsepc/srsepc.conf.example" ]; then
+    echo "Ошибка: Файл srsepc/srsepc.conf.example не найден! Проверьте репозиторий srsRAN_4G."
+    exit 1
+fi
+cp srsepc/srsepc.conf.example srsepc/srsepc.conf
+cp srsenb/enb.conf.example srsenb/enb.conf
+cp srsue/ue.conf.example srsue/ue.conf
+# Добавьте другие cp, если нужно (например, rr.conf.example, sib.conf.example)
+# Опционально: Модифицируйте конфиги для ZMQ (sed -i 's/device_name = uhd/device_name = zmq/g' srsenb/enb.conf)
+cd ..  # Вернуться назад
+echo "=== Сборка завершена ==="

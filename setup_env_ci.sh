@@ -45,3 +45,24 @@ cmake .. -DCMAKE_BUILD_TYPE=Release
 make -j$(nproc)
 
 echo "=== Сборка завершена ==="
+# === Копирование и настройка конфигов (doc 13.3) ===
+echo "=== Генерация конфигурационных файлов ==="
+mkdir -p configs
+
+# Копируем примеры
+cp srsRAN_4G/srsepc/srsepc.conf.example configs/epc.conf
+cp srsRAN_4G/srsenb/enb.conf.example configs/enb.conf
+cp srsRAN_4G/srsue/ue.conf.example configs/ue.conf
+
+# === Настройка UE (обязательно для ZMQ) ===
+sed -i 's/imsi = .*/imsi = 001010000000001/' configs/ue.conf
+sed -i 's/apn = .*/apn = srsapn/' configs/ue.conf
+sed -i 's/device_name = .*/device_name = zmq/' configs/ue.conf
+sed -i 's|device_args = .*|device_args = "tx_port=tcp://*:2001,rx_port=tcp://localhost:2000,id=ue,base_srate=23.04e6"|' configs/ue.conf
+
+# === Настройка eNB ===
+sed -i 's/device_name = .*/device_name = zmq/' configs/enb.conf
+sed -i 's|device_args = .*|device_args = "fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://localhost:2001,id=enb,base_srate=23.04e6"|' configs/enb.conf
+
+# === EPC — дефолт подходит ===
+echo "Конфиги готовы в ./configs/"

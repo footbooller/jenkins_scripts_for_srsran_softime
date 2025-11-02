@@ -67,12 +67,12 @@ fi
 
 # === Настройка конфигов для ZMQ (doc 13.3) ===
 echo "=== Настройка конфигов для ZMQ (doc 13.3) ==="
-# Добавляем [rf] секцию в enb.conf, если её нет (используем IPC для работы с namespace)
+# Добавляем [rf] секцию в enb.conf, если её нет
 if ! grep -q "\[rf\]" /etc/srsran/enb.conf; then
     sudo bash -c 'cat <<EOF >> /etc/srsran/enb.conf
 [rf]
 device_name = zmq
-device_args = fail_on_disconnect=true,tx_port=ipc:///tmp/enb_tx.sock,rx_port=ipc:///tmp/ue_tx.sock,id=enb
+device_args = fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://localhost:2001,id=enb,base_srate=23.04e6
 EOF'
 fi
 
@@ -81,7 +81,7 @@ if ! grep -q "\[rf\]" /etc/srsran/ue.conf; then
     sudo bash -c 'cat <<EOF >> /etc/srsran/ue.conf
 [rf]
 device_name = zmq
-device_args = tx_port=ipc:///tmp/ue_tx.sock,rx_port=ipc:///tmp/enb_tx.sock,id=ue
+device_args = tx_port=tcp://*:2001,rx_port=tcp://localhost:2000,id=ue,base_srate=23.04e6
 EOF'
 fi
 
@@ -92,15 +92,9 @@ sudo sed -i '/\[channel\]/,/\[/ s/enable = true/enable = false/' /etc/srsran/enb
 sudo sed -i '/channel.ul.hst.device_args/d' /etc/srsran/ue.conf
 sudo sed -i '/channel.ul.hst.device_args/d' /etc/srsran/enb.conf
 
-# Фикс sample rate: Установить nof_prb=6 для совместимости ZMQ (1.92 MHz)
-sudo sed -i 's/nof_prb = 50/nof_prb = 6/' /etc/srsran/enb.conf || true
-
-# Фикс S1: Установить адреса на 127.0.0.1
-sudo sed -i 's/mme_addr = .*/mme_addr = 127.0.0.1/' /etc/srsran/enb.conf || true
-sudo sed -i 's/gtp_bind_addr = .*/gtp_bind_addr = 127.0.0.1/' /etc/srsran/enb.conf || true
-sudo sed -i 's/s1c_bind_addr = .*/s1c_bind_addr = 127.0.0.1/' /etc/srsran/enb.conf || true
-sudo sed -i 's/mme_bind_addr = .*/mme_bind_addr = 127.0.0.1/' /etc/srsran/epc.conf || true
-sudo sed -i 's/gtpu_bind_addr = .*/gtpu_bind_addr = 127.0.0.1/' /etc/srsran/epc.conf || true
+# Настройка EPC (default IP из доки)
+sudo sed -i 's/mme_bind_addr = .*/mme_bind_addr = 127.0.1.1/' /etc/srsran/epc.conf || true
+sudo sed -i 's/gtpu_bind_addr = .*/gtpu_bind_addr = 127.0.1.1/' /etc/srsran/epc.conf || true
 
 # Проверка содержимого /etc/srsran/
 echo "=== Содержимое /etc/srsran/ после настройки ==="

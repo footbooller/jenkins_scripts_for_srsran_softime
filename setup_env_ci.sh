@@ -67,12 +67,12 @@ fi
 
 # === Настройка конфигов для ZMQ (doc 13.3) ===
 echo "=== Настройка конфигов для ZMQ (doc 13.3) ==="
-# Добавляем [rf] секцию в enb.conf, если её нет
+# Добавляем [rf] секцию в enb.conf, если её нет (используем IPC для работы с namespace)
 if ! grep -q "\[rf\]" /etc/srsran/enb.conf; then
     sudo bash -c 'cat <<EOF >> /etc/srsran/enb.conf
 [rf]
 device_name = zmq
-device_args = fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://localhost:2001,id=enb,base_srate=23.04e6
+device_args = fail_on_disconnect=true,tx_port=ipc:///tmp/enb_tx.sock,rx_port=ipc:///tmp/ue_tx.sock,id=enb
 EOF'
 fi
 
@@ -81,7 +81,7 @@ if ! grep -q "\[rf\]" /etc/srsran/ue.conf; then
     sudo bash -c 'cat <<EOF >> /etc/srsran/ue.conf
 [rf]
 device_name = zmq
-device_args = tx_port=tcp://*:2001,rx_port=tcp://localhost:2000,id=ue,base_srate=23.04e6
+device_args = tx_port=ipc:///tmp/ue_tx.sock,rx_port=ipc:///tmp/enb_tx.sock,id=ue
 EOF'
 fi
 

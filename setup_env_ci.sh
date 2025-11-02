@@ -92,7 +92,10 @@ sudo sed -i '/\[channel\]/,/\[/ s/enable = true/enable = false/' /etc/srsran/enb
 sudo sed -i '/channel.ul.hst.device_args/d' /etc/srsran/ue.conf
 sudo sed -i '/channel.ul.hst.device_args/d' /etc/srsran/enb.conf
 
-# Фикс S1 connection: Устанавливаем все bind/addrs на 127.0.0.1
+# Фикс sample rate: Установить nof_prb=6 для совместимости ZMQ (1.92 MHz)
+sudo sed -i 's/nof_prb = 50/nof_prb = 6/' /etc/srsran/enb.conf || true
+
+# Фикс S1: Установить адреса на 127.0.0.1
 sudo sed -i 's/mme_addr = .*/mme_addr = 127.0.0.1/' /etc/srsran/enb.conf || true
 sudo sed -i 's/gtp_bind_addr = .*/gtp_bind_addr = 127.0.0.1/' /etc/srsran/enb.conf || true
 sudo sed -i 's/s1c_bind_addr = .*/s1c_bind_addr = 127.0.0.1/' /etc/srsran/enb.conf || true

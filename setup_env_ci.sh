@@ -47,36 +47,47 @@ make -j$(nproc)
 sudo make install  # Устанавливаем в систему (/usr/local/)
 sudo ldconfig
 
-# === Установка конфигурационных файлов (из документации) ===
+# === Установка конфигурационных файлов в /etc/srsran/ ===
 echo "=== Установка конфигурационных файлов в /etc/srsran/ ==="
-# Скрипт установки конфигов устанавливается в /usr/local/bin после make install
+# Проверяем и используем скрипт установки, если он доступен
 if [ -f /usr/local/bin/srsran_4g_install_configs.sh ]; then
-    sudo /usr/local/bin/srsran_4g_install_configs.sh service  # Для system-wide в /etc/srsran/
+    sudo /usr/local/bin/srsran_4g_install_configs.sh service  # System-wide установка в /etc/srsran/
 else
-    # Если скрипт не найден, копируем вручную из исходников (примеры в srsRAN_4G/cmake/install_scripts/)
+    # Если скрипт не найден, копируем вручную из правильной папки (configs/*.example)
+    if [ ! -d ../configs ]; then
+        echo "Ошибка: Папка ../configs не найдена! Проверьте репозиторий srsRAN_4G."
+        exit 1
+    fi
     sudo mkdir -p /etc/srsran
-    sudo cp ../cmake/install_scripts/*.conf.example /etc/srsran/
-    sudo mv /etc/srsran/enb.conf.example /etc/srsran/enb.conf
-    sudo mv /etc/srsran/ue.conf.example /etc/srsran/ue.conf
-    sudo mv /etc/srsran/epc.conf.example /etc/srsran/epc.conf
-    sudo mv /etc/srsran/rr.conf.example /etc/srsran/rr.conf
-    sudo mv /etc/srsran/sib.conf.example /etc/srsran/sib.conf
-    sudo mv /etc/srsran/user_db.csv.example /etc/srsran/user_db.csv
-    echo "Конфиги скопированы вручную из example файлов."
+    sudo cp ../configs/*.example /etc/srsran/ || { echo "Ошибка копирования конфигов!"; exit 1; }
+    # Переименовываем .example в .conf
+    sudo mv /etc/srsran/enb.conf.example /etc/srsran/enb.conf || true
+    sudo mv /etc/srsran/ue.conf.example /etc/srsran/ue.conf || true
+    sudo mv /etc/srsran/epc.conf.example /etc/srsran/epc.conf || true
+    sudo mv /etc/srsran/rr.conf.example /etc/srsran/rr.conf || true
+    sudo mv /etc/srsran/sib.conf.example /etc/srsran/sib.conf || true
+    sudo mv /etc/srsran/user_db.csv.example /etc/srsran/user_db.csv || true
+    echo "Конфиги скопированы и переименованы вручную из configs/*.example."
 fi
 
 # === Настройка конфигов для ZMQ (doc 13.3) ===
 echo "=== Настройка конфигов для ZMQ (doc 13.3) ==="
-# Настройка ZMQ в enb.conf (но документация рекомендует command-line args; модифицируем для persist)
-sudo sed -i '/\[rf\]/a device_name = zmq' /etc/srsran/enb.conf
-sudo sed -i '/\[rf\]/a device_args = fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://localhost:2001,id=enb,base_srate=23.04e6' /etc/srsran/enb.conf
+# Добавляем/обновляем [rf] секцию в enb.conf
+sudo bash -c 'cat <<EOF >> /etc/srsran/enb.conf
+[rf]
+device_name = zmq
+device_args = fail_on_disconnect=true,tx_port=tcp://*:2000,rx_port=tcp://localhost:2001,id=enb,base_srate=23.04e6
+EOF' || true
 
-# Настройка ZMQ в ue.conf
-sudo sed -i '/\[rf\]/a device_name = zmq' /etc/srsran/ue.conf
-sudo sed -i '/\[rf\]/a device_args = tx_port=tcp://*:2001,rx_port=tcp://localhost:2000,id=ue,base_srate=23.04e6' /etc/srsran/ue.conf
+# Добавляем/обновляем [rf] секцию в ue.conf
+sudo bash -c 'cat <<EOF >> /etc/srsran/ue.conf
+[rf]
+device_name = zmq
+device_args = tx_port=tcp://*:2001,rx_port=tcp://localhost:2000,id=ue,base_srate=23.04e6
+EOF' || true
 
-# Убедимся, что EPC использует default subnet (172.16.0.0/24 по доке)
-sudo sed -i 's/mme_bind_addr = .*/mme_bind_addr = 127.0.1.1/' /etc/srsran/epc.conf
-sudo sed -i 's/gtpu_bind_addr = .*/gtpu_bind_addr = 127.0.1.1/' /etc/srsran/epc.conf
+# Настройка EPC (default IP из доки)
+sudo sed -i 's/mme_bind_addr = .*/mme_bind_addr = 127.0.1.1/' /etc/srsran/epc.conf || true
+sudo sed -i 's/gtpu_bind_addr = .*/gtpu_bind_addr = 127.0.1.1/' /etc/srsran/epc.conf || true
 
 echo "=== Сборка и настройка завершены ==="

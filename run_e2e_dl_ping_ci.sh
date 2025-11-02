@@ -33,6 +33,8 @@ if ! grep -q "RRC Connected" ue.log; then
     tail -30 ue.log
     echo "=== enb.log (последние 30 строк) ==="
     tail -30 enb.log
+    echo "=== epc.log (последние 30 строк) ==="
+    tail -30 epc.log
     sudo pkill -f srsepc || true
     sudo pkill -f srsenb || true
     sudo pkill -f srsue || true

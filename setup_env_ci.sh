@@ -53,14 +53,29 @@ echo "=== Установка конфигурационных файлов в /e
 if [ -f /usr/local/bin/srsran_4g_install_configs.sh ]; then
     sudo /usr/local/bin/srsran_4g_install_configs.sh service  # System-wide установка в /etc/srsran/
 else
-    # Копируем вручную из поддиректорий (как в вашем изображении и логе)
+    # Копируем вручную из поддиректорий (относительно build/ - ../srsenb/ и т.д.)
     sudo mkdir -p /etc/srsran
-    sudo cp ../../srsenb/enb.conf.example /etc/srsran/enb.conf || { echo "Ошибка: enb.conf.example не найден!"; exit 1; }
-    sudo cp ../../srsue/ue.conf.example /etc/srsran/ue.conf || { echo "Ошибка: ue.conf.example не найден!"; exit 1; }
-    sudo cp ../../srsepc/epc.conf.example /etc/srsran/epc.conf || { echo "Ошибка: epc.conf.example не найден!"; exit 1; }
-    sudo cp ../../srsenb/rr.conf.example /etc/srsran/rr.conf || true
-    sudo cp ../../srsenb/sib.conf.example /etc/srsran/sib.conf || true
-    sudo cp ../../srsepc/user_db.csv.example /etc/srsran/user_db.csv || true
+    if [ ! -f ../srsenb/enb.conf.example ]; then
+        echo "Ошибка: ../srsenb/enb.conf.example не найден! Проверьте структуру репозитория."
+        exit 1
+    fi
+    sudo cp ../srsenb/enb.conf.example /etc/srsran/enb.conf
+    sudo cp ../srsenb/rr.conf.example /etc/srsran/rr.conf || true
+    sudo cp ../srsenb/sib.conf.example /etc/srsran/sib.conf || true
+
+    if [ ! -f ../srsue/ue.conf.example ]; then
+        echo "Ошибка: ../srsue/ue.conf.example не найден! Проверьте структуру репозитория."
+        exit 1
+    fi
+    sudo cp ../srsue/ue.conf.example /etc/srsran/ue.conf
+
+    if [ ! -f ../srsepc/epc.conf.example ]; then
+        echo "Ошибка: ../srsepc/epc.conf.example не найден! Проверьте структуру репозитория."
+        exit 1
+    fi
+    sudo cp ../srsepc/epc.conf.example /etc/srsran/epc.conf
+    sudo cp ../srsepc/user_db.csv.example /etc/srsran/user_db.csv || true
+
     echo "Конфиги скопированы вручную из srsenb/, srsue/, srsepc/."
 fi
 
@@ -87,7 +102,7 @@ fi
 # Отключаем канал-эмуляторы (не нужны для ZMQ) и удаляем недопустимые опции
 sudo sed -i '/\[channel\]/,/\[/ s/enable = true/enable = false/' /etc/srsran/ue.conf
 sudo sed -i '/\[channel\]/,/\[/ s/enable = true/enable = false/' /etc/srsran/enb.conf
-# Удаляем конкретно 'device_args' под [channel.ul.hst] или похожих
+# Удаляем 'device_args' под [channel.ul.hst] или похожих
 sudo sed -i '/channel.ul.hst.device_args/d' /etc/srsran/ue.conf
 sudo sed -i '/channel.ul.hst.device_args/d' /etc/srsran/enb.conf
 

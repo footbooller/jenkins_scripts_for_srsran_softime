@@ -92,9 +92,19 @@ sudo sed -i '/\[channel\]/,/\[/ s/enable = true/enable = false/' /etc/srsran/enb
 sudo sed -i '/channel.ul.hst.device_args/d' /etc/srsran/ue.conf
 sudo sed -i '/channel.ul.hst.device_args/d' /etc/srsran/enb.conf
 
-# Настройка EPC (default IP из доки)
-sudo sed -i 's/mme_bind_addr = .*/mme_bind_addr = 127.0.1.1/' /etc/srsran/epc.conf || true
-sudo sed -i 's/gtpu_bind_addr = .*/gtpu_bind_addr = 127.0.1.1/' /etc/srsran/epc.conf || true
+# Фикс sample rate: Установить nof_prb=6 для совместимости ZMQ (1.92 MHz)
+sudo sed -i 's/nof_prb = 50/nof_prb = 6/' /etc/srsran/enb.conf || true
+
+# Фикс S1: Установить адреса на 127.0.0.1
+sudo sed -i 's/mme_addr = .*/mme_addr = 127.0.0.1/' /etc/srsran/enb.conf || true
+sudo sed -i 's/gtp_bind_addr = .*/gtp_bind_addr = 127.0.0.1/' /etc/srsran/enb.conf || true
+sudo sed -i 's/s1c_bind_addr = .*/s1c_bind_addr = 127.0.0.1/' /etc/srsran/enb.conf || true
+sudo sed -i 's/mme_bind_addr = .*/mme_bind_addr = 127.0.0.1/' /etc/srsran/epc.conf || true
+sudo sed -i 's/gtpu_bind_addr = .*/gtpu_bind_addr = 127.0.0.1/' /etc/srsran/epc.conf || true
+
+# Фикс USIM: Добавляем default UE entry в user_db.csv и ue.conf
+sudo sed -i '/\[usim\]/a algo = milenage\nopc = 63bfa50ee6523365ff14c1f45f88737d\nk = 00112233445566778899aabbccddeeff\nimsi = 901700000021309\nimei = 353490069873319' /etc/srsran/ue.conf || true
+sudo bash -c 'echo "ue1,mil,901700000021309,00112233445566778899aabbccddeeff,opc,63bfa50ee6523365ff14c1f45f88737d,8000,000000001234,9,dynamic" >> /etc/srsran/user_db.csv'
 
 # Проверка содержимого /etc/srsran/
 echo "=== Содержимое /etc/srsran/ после настройки ==="

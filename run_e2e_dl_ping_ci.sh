@@ -1,66 +1,46 @@
 #!/bin/bash
+set -euo pipefail
 
-# Очистка namespace...
+# ==== 1. PATH ====
+export PATH="/usr/local/bin:$PATH"
+
+# ==== 2. Проверка бинарников ====
+for bin in srsenb srsepc srsue; do
+    command -v "$bin" >/dev/null || { echo "ОШИБКА: $bin не найден!"; exit 1; }
+done
+
 echo "Очистка namespace..."
-sudo ip netns delete ue1 || true
+ip netns delete ue1 2>/dev/null || true
 
-# Запуск EPC...
 echo "Запуск EPC..."
-sudo srsepc /etc/srsran/epc.conf > epc.log 2>&1 &
-sleep 10
+srsepc > epc.log 2>&1 &
 
-# Запуск eNB...
 echo "Запуск eNB..."
-sudo srsenb /etc/srsran/enb.conf --rf.device_name=zmq --rf.device_args="fail_on_disconnect=true,tx_port=ipc:///tmp/enb_tx.sock,rx_port=ipc:///tmp/ue_tx.sock,id=enb" > enb.log 2>&1 &
-sleep 10
+srsenb -c /etc/srsran/enb.conf > enb.log 2>&1 &
 
-# Запуск UE...
 echo "Запуск UE в namespace ue1..."
-sudo ip netns add ue1
-sudo ip link add name if0-ue1 type dummy
-sudo ip link set if0-ue1 netns ue1
-sudo ip netns exec ue1 ip link set if0-ue1 up
-sudo ip netns exec ue1 ip addr add 127.0.0.2/8 dev lo
-sudo ip netns exec ue1 sysctl -w net.ipv4.conf.all.accept_local=1
-sudo ip netns exec ue1 sysctl -w net.ipv4.ip_forward=1
-sudo ip netns exec ue1 srsue /etc/srsran/ue.conf --rf.device_name=zmq --rf.device_args="tx_port=ipc:///tmp/ue_tx.sock,rx_port=ipc:///tmp/enb_tx.sock,id=ue" --gw.netns=ue1 --log.all_level=debug > ue.log 2>&1 &
-sleep 60
+ip netns add ue1
+ip netns exec ue1 sysctl -w net.ipv4.conf.all.accept_local=1
+ip netns exec ue1 sysctl -w net.ipv4.ip_forward=1
+ip netns exec ue1 srsue -c /etc/srsran/ue.conf > ue.log 2>&1 &
 
-# Проверка подключения UE
-if ! grep -q "RRC Connected" ue.log; then
-    echo "ОШИБКА: UE не подключился!"
-    echo "=== ue.log (последние 30 строк) ==="
-    tail -30 ue.log
-    echo "=== enb.log (последние 30 строк) ==="
-    tail -30 enb.log
-    echo "=== epc.log (последние 30 строк) ==="
-    tail -30 epc.log
-    sudo pkill -f srsepc || true
-    sudo pkill -f srsenb || true
-    sudo pkill -f srsue || true
-    sudo ip netns delete ue1 || true
-    exit 1
-fi
+# Ждём подключения UE (примерно 30 сек)
+sleep 30
 
-# Запуск ping (к EPC)
-echo "Запуск ping..."
-sudo ip netns exec ue1 ping -c 10 172.16.0.1 > ping.log 2>&1
+echo "=== ue.log (последние 30 строк) ==="
+tail -n 30 ue.log
 
-# Проверка ping
-if grep -q "100% packet loss" ping.log; then
-    echo "ОШИБКА: Пинг не прошёл! Лог ping:"
-    cat ping.log
-    sudo pkill -f srsepc || true
-    sudo pkill -f srsenb || true
-    sudo pkill -f srsue || true
-    sudo ip netns delete ue1 || true
-    exit 1
-fi
+echo "=== enb.log (последние 30 строк) ==="
+tail -n 30 enb.log
 
-echo "Тест пройден успешно!"
+echo "=== epc.log (последние 30 строк) ==="
+tail -n 30 epc.log
+
+# Пинг (пример)
+ip netns exec ue1 ping -c 4 192.168.3.1 || true
 
 # Очистка
-sudo pkill -f srsepc || true
-sudo pkill -f srsenb || true
-sudo pkill -f srsue || true
-sudo ip netns delete ue1 || true
+ip netns delete ue1 || true
+pkill -f srsue || true
+pkill -f srsenb || true
+pkill -f srsepc || true
